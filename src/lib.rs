@@ -572,6 +572,11 @@ fn left_len(content_len: usize) -> usize {
     largest_power_of_two_leq(full_chunks) * CHUNK_LEN
 }
 
+/// Compress in parallel multiple pieces of input.
+pub fn compress_fixed_parallel<const VSIZE: usize>(_inputs: &[[u8; CHUNK_LEN / 8]; VSIZE]) -> Hash {
+    todo!()
+}
+
 // Use SIMD parallelism to hash up to MAX_SIMD_DEGREE chunks at the same time
 // on a single thread. Write out the chunk chaining values and return the
 // number of chunks hashed. These chunks are never the root and never empty;
