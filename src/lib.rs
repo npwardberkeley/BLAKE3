@@ -119,6 +119,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use core::cmp;
 use core::fmt;
 use platform::{Platform, MAX_SIMD_DEGREE, MAX_SIMD_DEGREE_OR_2};
+use rayon::prelude::IntoParallelRefIterator;
 
 /// The number of bytes in a [`Hash`](struct.Hash.html), 32.
 pub const OUT_LEN: usize = 32;
@@ -573,14 +574,17 @@ fn left_len(content_len: usize) -> usize {
 }
 
 /// Compress in parallel multiple pieces of input.
-pub fn compress_fixed_parallel<const VSIZE: usize>(inputs: &[[u8; CHUNK_LEN]; VSIZE]) -> Hash {
+pub fn compress_fixed_parallel<const VSIZE: usize>(
+    inputs: &[[u8; CHUNK_LEN]; VSIZE],
+) -> [Hash; VSIZE] {
     let key = IV;
+    let mut out_hashes = [Hash; VSIZE];
     let platform = Platform::detect();
-    let mut out = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
     let flags = 0; // TODO: Make a generic for testing...
 
     // TODO: Make loop parallel...
     for (c_idx, input) in inputs.into_iter().enumerate() {
+        let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
         let chunks = input.chunks(MAX_SIMD_DEGREE);
 
         // Remainder is always empty in our case?
@@ -588,12 +592,11 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(inputs: &[[u8; CHUNK_LEN]; VS
             chunks,
             &[],
             key,
-            c_idx as u64,
+            (c_idx * MAX_SIMD_DEGREE) as u64,
             flags,
             platform,
-            &mut out,
+            &mut out_bytes,
         );
-        // TODO: Have out write into a parallel buffer or something...
     }
 
     // TODO: Merge all of the outs into a `Hash`...
