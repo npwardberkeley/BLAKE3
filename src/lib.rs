@@ -573,7 +573,30 @@ fn left_len(content_len: usize) -> usize {
 }
 
 /// Compress in parallel multiple pieces of input.
-pub fn compress_fixed_parallel<const VSIZE: usize>(_inputs: &[[u8; CHUNK_LEN / 8]; VSIZE]) -> Hash {
+pub fn compress_fixed_parallel<const VSIZE: usize>(inputs: &[[u8; CHUNK_LEN]; VSIZE]) -> Hash {
+    let key = IV;
+    let platform = Platform::detect();
+    let mut out = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
+    let flags = 0; // TODO: Make a generic for testing...
+
+    // TODO: Make loop parallel...
+    for (c_idx, input) in inputs.into_iter().enumerate() {
+        let chunks = input.chunks(MAX_SIMD_DEGREE);
+
+        // Remainder is always empty in our case?
+        compress_chunks_parallel_chunked_input(
+            chunks,
+            &[],
+            key,
+            c_idx as u64,
+            flags,
+            platform,
+            &mut out,
+        );
+        // TODO: Have out write into a parallel buffer or something...
+    }
+
+    // TODO: Merge all of the outs into a `Hash`...
     todo!()
 }
 
@@ -592,7 +615,28 @@ fn compress_chunks_parallel(
     debug_assert!(!input.is_empty(), "empty chunks below the root");
     debug_assert!(input.len() <= MAX_SIMD_DEGREE * CHUNK_LEN);
 
-    let mut chunks_exact = input.chunks_exact(CHUNK_LEN);
+    let chunks = input.chunks_exact(CHUNK_LEN);
+    let remainder = chunks.remainder();
+    compress_chunks_parallel_chunked_input(
+        chunks,
+        remainder,
+        key,
+        chunk_counter,
+        flags,
+        platform,
+        out,
+    )
+}
+
+fn compress_chunks_parallel_chunked_input<'a>(
+    mut chunks_exact: impl Iterator<Item = &'a [u8]> + 'a,
+    remainder: &[u8],
+    key: &CVWords,
+    chunk_counter: u64,
+    flags: u8,
+    platform: Platform,
+    out: &mut [u8],
+) -> usize {
     let mut chunks_array = ArrayVec::<&[u8; CHUNK_LEN], MAX_SIMD_DEGREE>::new();
     for chunk in &mut chunks_exact {
         chunks_array.push(array_ref!(chunk, 0, CHUNK_LEN));
@@ -611,10 +655,10 @@ fn compress_chunks_parallel(
     // Hash the remaining partial chunk, if there is one. Note that the empty
     // chunk (meaning the empty message) is a different codepath.
     let chunks_so_far = chunks_array.len();
-    if !chunks_exact.remainder().is_empty() {
+    if remainder.is_empty() {
         let counter = chunk_counter + chunks_so_far as u64;
         let mut chunk_state = ChunkState::new(key, counter, flags, platform);
-        chunk_state.update(chunks_exact.remainder());
+        chunk_state.update(remainder);
         *array_mut_ref!(out, chunks_so_far * OUT_LEN, OUT_LEN) =
             chunk_state.output().chaining_value();
         chunks_so_far + 1
