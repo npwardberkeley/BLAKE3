@@ -633,7 +633,7 @@ const fn test_hash_const_conversions() {
 }
 
 #[test]
-fn test_fixed_compress_chunk_single_block() {
+fn test_fixed_compress_chunk_single_chunk() {
     let mut byte_gen = repeat((0..255).into_iter()).flatten();
     let input: [u8; CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
 

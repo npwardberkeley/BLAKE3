@@ -584,7 +584,7 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(
 
     // TODO: Make loop parallel...
     for (c_idx, input) in inputs.chunks(MAX_SIMD_DEGREE_OR_2).into_iter().enumerate() {
-        let chunk_start = c_idx * MAX_SIMD_DEGREE_OR_2;
+        let chunk_start_idx = c_idx * MAX_SIMD_DEGREE_OR_2;
         let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
 
         // Remainder is always empty in our case?
@@ -598,8 +598,10 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(
             &mut out_bytes,
         );
 
-        for (i, b) in out_bytes.array_chunks::<32>().enumerate() {
-            out_hashes[chunk_start + i] = Hash(*b);
+        let rem_hashes = input.len() - chunk_start_idx;
+        let num_hashes = MAX_SIMD_DEGREE_OR_2.min(rem_hashes);
+        for (i, b) in out_bytes.array_chunks::<32>().enumerate().take(num_hashes) {
+            out_hashes[chunk_start_idx + i] = Hash(*b);
         }
     }
 
