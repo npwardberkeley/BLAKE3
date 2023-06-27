@@ -583,14 +583,13 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(
     let flags = 0; // TODO: Make a generic for testing...
 
     // TODO: Make loop parallel...
-    for (c_idx, input) in inputs.into_iter().enumerate() {
+    for (c_idx, input) in inputs.chunks(MAX_SIMD_DEGREE_OR_2).into_iter().enumerate() {
         let chunk_start = c_idx * MAX_SIMD_DEGREE_OR_2;
         let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
-        let chunks = input.chunks(CHUNK_LEN);
 
         // Remainder is always empty in our case?
         compress_chunks_parallel_chunked_input(
-            chunks,
+            input.into_iter().map(|x| x.as_ref()),
             &[],
             key,
             (c_idx * MAX_SIMD_DEGREE) as u64,
