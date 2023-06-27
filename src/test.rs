@@ -1,7 +1,10 @@
-use crate::{CVBytes, CVWords, IncrementCounter, BLOCK_LEN, CHUNK_LEN, OUT_LEN};
+use crate::{
+    compress_chunks_parallel, compress_fixed_parallel, platform::Platform, CVBytes, CVWords, Hash,
+    IncrementCounter, BLOCK_LEN, CHUNK_LEN, IV, OUT_LEN,
+};
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
-use core::usize;
+use core::{iter::repeat, usize};
 use rand::prelude::*;
 
 // Interesting input lengths to run tests on.
@@ -627,4 +630,15 @@ const fn test_hash_const_conversions() {
     let bytes = [42; 32];
     let hash = crate::Hash::from_bytes(bytes);
     _ = hash.as_bytes();
+}
+
+#[test]
+fn test_fixed_compress_chunk_single_block() {
+    let mut byte_gen = repeat((0..255).into_iter()).flatten();
+    let input: [u8; CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
+
+    let fixed_out = compress_fixed_parallel(&[input]);
+    let mut ground_truth_raw = [0; 32];
+    compress_chunks_parallel(&input, IV, 0, 0, Platform::detect(), &mut ground_truth_raw);
+    assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
 }
