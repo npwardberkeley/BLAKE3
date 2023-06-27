@@ -662,7 +662,7 @@ fn compress_chunks_parallel_chunked_input<'a>(
     // Hash the remaining partial chunk, if there is one. Note that the empty
     // chunk (meaning the empty message) is a different codepath.
     let chunks_so_far = chunks_array.len();
-    if remainder.is_empty() {
+    if !remainder.is_empty() {
         let counter = chunk_counter + chunks_so_far as u64;
         let mut chunk_state = ChunkState::new(key, counter, flags, platform);
         chunk_state.update(remainder);
