@@ -65,6 +65,7 @@
 //! [`digest`]: https://crates.io/crates/digest
 //! [`signature`]: https://crates.io/crates/signature
 
+#![feature(array_chunks)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(test)]
@@ -119,7 +120,6 @@ use arrayvec::{ArrayString, ArrayVec};
 use core::cmp;
 use core::fmt;
 use platform::{Platform, MAX_SIMD_DEGREE, MAX_SIMD_DEGREE_OR_2};
-use rayon::prelude::IntoParallelRefIterator;
 
 /// The number of bytes in a [`Hash`](struct.Hash.html), 32.
 pub const OUT_LEN: usize = 32;
@@ -578,14 +578,15 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(
     inputs: &[[u8; CHUNK_LEN]; VSIZE],
 ) -> [Hash; VSIZE] {
     let key = IV;
-    let mut out_hashes = [Hash; VSIZE];
+    let mut out_hashes = [Hash::from_bytes([0; 32]); VSIZE];
     let platform = Platform::detect();
     let flags = 0; // TODO: Make a generic for testing...
 
     // TODO: Make loop parallel...
     for (c_idx, input) in inputs.into_iter().enumerate() {
+        let chunk_start = c_idx * MAX_SIMD_DEGREE_OR_2;
         let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
-        let chunks = input.chunks(MAX_SIMD_DEGREE);
+        let chunks = input.chunks(CHUNK_LEN);
 
         // Remainder is always empty in our case?
         compress_chunks_parallel_chunked_input(
@@ -597,10 +598,13 @@ pub fn compress_fixed_parallel<const VSIZE: usize>(
             platform,
             &mut out_bytes,
         );
+
+        for (i, b) in out_bytes.array_chunks::<32>().enumerate() {
+            out_hashes[chunk_start + i] = Hash(*b);
+        }
     }
 
-    // TODO: Merge all of the outs into a `Hash`...
-    todo!()
+    out_hashes
 }
 
 // Use SIMD parallelism to hash up to MAX_SIMD_DEGREE chunks at the same time
