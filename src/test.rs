@@ -1,6 +1,6 @@
 use crate::{
     compress_chunks_parallel, compress_fixed_parallel, platform::Platform, CVBytes, CVWords, Hash,
-    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
+    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN, portable::test,
 };
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
@@ -656,6 +656,30 @@ fn test_fixed_compress_single_chunk_randomized() {
     assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
 }
 
+#[test]
+fn test_fixed_compress_single_chunk_randomized_256() {
+    let mut rng = rand_chacha::ChaCha8Rng::from_seed([1; 32]);
+
+    let input: [u8; 256] = core::array::from_fn(|_| rng.gen());
+
+    let fixed_out = compress_fixed_parallel(&[input]);
+    let mut ground_truth_raw = [0; 32];
+    compress_chunks_parallel(&input, IV, 0, 0, Platform::detect(), &mut ground_truth_raw);
+    assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
+}
+
+#[test]
+fn test_fixed_compress_single_chunk_randomized_512() {
+    let mut rng = rand_chacha::ChaCha8Rng::from_seed([1; 32]);
+
+    let input: [u8; 512] = core::array::from_fn(|_| rng.gen());
+
+    let fixed_out = compress_fixed_parallel(&[input]);
+    let mut ground_truth_raw = [0; 32];
+    compress_chunks_parallel(&input, IV, 0, 0, Platform::detect(), &mut ground_truth_raw);
+    assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
+}
+
 // Test a different value of CHUNK_LEN. We have no ground truth to compare this to, because the
 // actual Blake3 implementation only supports CHUNK_LEN = 1024.
 macro_rules! test_given_chunk_len {
@@ -670,7 +694,13 @@ macro_rules! test_given_chunk_len {
 
 #[test]
 fn test_fixed_compress_single_chunk_various_lens() {
+    test_given_chunk_len!(128);
+    test_given_chunk_len!(256);
     test_given_chunk_len!(512);
+    test_given_chunk_len!(768);
     test_given_chunk_len!(1024);
+    test_given_chunk_len!(1536);
     test_given_chunk_len!(2048);
+    test_given_chunk_len!(3072);
+    test_given_chunk_len!(4096);
 }
