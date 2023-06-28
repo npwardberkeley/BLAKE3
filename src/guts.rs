@@ -7,12 +7,12 @@
 //! use case for it, please let us know by filing a GitHub issue.
 
 pub const BLOCK_LEN: usize = 64;
-pub const CHUNK_LEN: usize = 1024;
+pub const DEFAULT_CHUNK_LEN: usize = 1024;
 
 #[derive(Clone, Debug)]
-pub struct ChunkState(crate::ChunkState);
+pub struct ChunkState<const CHUNK_LEN: usize>(crate::ChunkState<CHUNK_LEN>);
 
-impl ChunkState {
+impl<const CHUNK_LEN: usize> ChunkState<CHUNK_LEN> {
     // Currently this type only supports the regular hash mode. If an
     // incremental user needs keyed_hash or derive_key, we can add that.
     pub fn new(chunk_counter: u64) -> Self {
@@ -74,25 +74,25 @@ mod test {
     fn test_chunk() {
         assert_eq!(
             crate::hash(b"foo"),
-            ChunkState::new(0).update(b"foo").finalize(true)
+            ChunkState::<DEFAULT_CHUNK_LEN>::new(0).update(b"foo").finalize(true)
         );
     }
 
     #[test]
     fn test_parents() {
         let mut hasher = crate::Hasher::new();
-        let mut buf = [0; crate::CHUNK_LEN];
+        let mut buf = [0; crate::DEFAULT_CHUNK_LEN];
 
         buf[0] = 'a' as u8;
         hasher.update(&buf);
-        let chunk0_cv = ChunkState::new(0).update(&buf).finalize(false);
+        let chunk0_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(0).update(&buf).finalize(false);
 
         buf[0] = 'b' as u8;
         hasher.update(&buf);
-        let chunk1_cv = ChunkState::new(1).update(&buf).finalize(false);
+        let chunk1_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(1).update(&buf).finalize(false);
 
         hasher.update(b"c");
-        let chunk2_cv = ChunkState::new(2).update(b"c").finalize(false);
+        let chunk2_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(2).update(b"c").finalize(false);
 
         let parent = parent_cv(&chunk0_cv, &chunk1_cv, false);
         let root = parent_cv(&parent, &chunk2_cv, true);

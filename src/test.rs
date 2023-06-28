@@ -1,6 +1,6 @@
 use crate::{
     compress_chunks_parallel, compress_fixed_parallel, platform::Platform, CVBytes, CVWords, Hash,
-    IncrementCounter, BLOCK_LEN, CHUNK_LEN, IV, OUT_LEN,
+    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
 };
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
@@ -24,29 +24,29 @@ pub const TEST_CASES: &[usize] = &[
     2 * BLOCK_LEN - 1,
     2 * BLOCK_LEN,
     2 * BLOCK_LEN + 1,
-    CHUNK_LEN - 1,
-    CHUNK_LEN,
-    CHUNK_LEN + 1,
-    2 * CHUNK_LEN,
-    2 * CHUNK_LEN + 1,
-    3 * CHUNK_LEN,
-    3 * CHUNK_LEN + 1,
-    4 * CHUNK_LEN,
-    4 * CHUNK_LEN + 1,
-    5 * CHUNK_LEN,
-    5 * CHUNK_LEN + 1,
-    6 * CHUNK_LEN,
-    6 * CHUNK_LEN + 1,
-    7 * CHUNK_LEN,
-    7 * CHUNK_LEN + 1,
-    8 * CHUNK_LEN,
-    8 * CHUNK_LEN + 1,
-    16 * CHUNK_LEN,  // AVX512's bandwidth
-    31 * CHUNK_LEN,  // 16 + 8 + 4 + 2 + 1
-    100 * CHUNK_LEN, // subtrees larger than MAX_SIMD_DEGREE chunks
+    DEFAULT_CHUNK_LEN - 1,
+    DEFAULT_CHUNK_LEN,
+    DEFAULT_CHUNK_LEN + 1,
+    2 * DEFAULT_CHUNK_LEN,
+    2 * DEFAULT_CHUNK_LEN + 1,
+    3 * DEFAULT_CHUNK_LEN,
+    3 * DEFAULT_CHUNK_LEN + 1,
+    4 * DEFAULT_CHUNK_LEN,
+    4 * DEFAULT_CHUNK_LEN + 1,
+    5 * DEFAULT_CHUNK_LEN,
+    5 * DEFAULT_CHUNK_LEN + 1,
+    6 * DEFAULT_CHUNK_LEN,
+    6 * DEFAULT_CHUNK_LEN + 1,
+    7 * DEFAULT_CHUNK_LEN,
+    7 * DEFAULT_CHUNK_LEN + 1,
+    8 * DEFAULT_CHUNK_LEN,
+    8 * DEFAULT_CHUNK_LEN + 1,
+    16 * DEFAULT_CHUNK_LEN,  // AVX512's bandwidth
+    31 * DEFAULT_CHUNK_LEN,  // 16 + 8 + 4 + 2 + 1
+    100 * DEFAULT_CHUNK_LEN, // subtrees larger than MAX_SIMD_DEGREE chunks
 ];
 
-pub const TEST_CASES_MAX: usize = 100 * CHUNK_LEN;
+pub const TEST_CASES_MAX: usize = 100 * DEFAULT_CHUNK_LEN;
 
 // There's a test to make sure these two are equal below.
 pub const TEST_KEY: CVBytes = *b"whats the Elvish word for friend";
@@ -111,7 +111,7 @@ type HashManyFn<A> = unsafe fn(
 
 // A shared helper function for platform-specific tests.
 pub fn test_hash_many_fn(
-    hash_many_chunks_fn: HashManyFn<[u8; CHUNK_LEN]>,
+    hash_many_chunks_fn: HashManyFn<[u8; DEFAULT_CHUNK_LEN]>,
     hash_many_parents_fn: HashManyFn<[u8; 2 * OUT_LEN]>,
 ) {
     // Test a few different initial counter values.
@@ -126,13 +126,13 @@ pub fn test_hash_many_fn(
 
         // 31 (16 + 8 + 4 + 2 + 1) inputs
         const NUM_INPUTS: usize = 31;
-        let mut input_buf = [0; CHUNK_LEN * NUM_INPUTS];
+        let mut input_buf = [0; DEFAULT_CHUNK_LEN * NUM_INPUTS];
         crate::test::paint_test_input(&mut input_buf);
 
         // First hash chunks.
-        let mut chunks = ArrayVec::<&[u8; CHUNK_LEN], NUM_INPUTS>::new();
+        let mut chunks = ArrayVec::<&[u8; DEFAULT_CHUNK_LEN], NUM_INPUTS>::new();
         for i in 0..NUM_INPUTS {
-            chunks.push(array_ref!(input_buf, i * CHUNK_LEN, CHUNK_LEN));
+            chunks.push(array_ref!(input_buf, i * DEFAULT_CHUNK_LEN, DEFAULT_CHUNK_LEN));
         }
         let mut portable_chunks_out = [0; NUM_INPUTS * OUT_LEN];
         crate::portable::hash_many(
@@ -263,13 +263,13 @@ fn test_largest_power_of_two_leq() {
 #[test]
 fn test_left_len() {
     let input_output = &[
-        (CHUNK_LEN + 1, CHUNK_LEN),
-        (2 * CHUNK_LEN - 1, CHUNK_LEN),
-        (2 * CHUNK_LEN, CHUNK_LEN),
-        (2 * CHUNK_LEN + 1, 2 * CHUNK_LEN),
-        (4 * CHUNK_LEN - 1, 2 * CHUNK_LEN),
-        (4 * CHUNK_LEN, 2 * CHUNK_LEN),
-        (4 * CHUNK_LEN + 1, 4 * CHUNK_LEN),
+        (DEFAULT_CHUNK_LEN + 1, DEFAULT_CHUNK_LEN),
+        (2 * DEFAULT_CHUNK_LEN - 1, DEFAULT_CHUNK_LEN),
+        (2 * DEFAULT_CHUNK_LEN, DEFAULT_CHUNK_LEN),
+        (2 * DEFAULT_CHUNK_LEN + 1, 2 * DEFAULT_CHUNK_LEN),
+        (4 * DEFAULT_CHUNK_LEN - 1, 2 * DEFAULT_CHUNK_LEN),
+        (4 * DEFAULT_CHUNK_LEN, 2 * DEFAULT_CHUNK_LEN),
+        (4 * DEFAULT_CHUNK_LEN + 1, 4 * DEFAULT_CHUNK_LEN),
     ];
     for &(input, output) in input_output {
         assert_eq!(crate::left_len(input), output);
@@ -389,10 +389,10 @@ fn test_compare_update_multiple() {
     // Don't use all the long test cases here, since that's unnecessarily slow
     // in debug mode.
     let mut short_test_cases = TEST_CASES;
-    while *short_test_cases.last().unwrap() > 4 * CHUNK_LEN {
+    while *short_test_cases.last().unwrap() > 4 * DEFAULT_CHUNK_LEN {
         short_test_cases = &short_test_cases[..short_test_cases.len() - 1];
     }
-    assert_eq!(*short_test_cases.last().unwrap(), 4 * CHUNK_LEN);
+    assert_eq!(*short_test_cases.last().unwrap(), 4 * DEFAULT_CHUNK_LEN);
 
     let mut input_buf = [0; 2 * TEST_CASES_MAX];
     paint_test_input(&mut input_buf);
@@ -422,7 +422,7 @@ fn test_compare_update_multiple() {
 
 #[test]
 fn test_fuzz_hasher() {
-    const INPUT_MAX: usize = 4 * CHUNK_LEN;
+    const INPUT_MAX: usize = 4 * DEFAULT_CHUNK_LEN;
     let mut input_buf = [0; 3 * INPUT_MAX];
     paint_test_input(&mut input_buf);
 
@@ -515,27 +515,27 @@ fn test_msg_schedule_permutation() {
 #[test]
 fn test_reset() {
     let mut hasher = crate::Hasher::new();
-    hasher.update(&[42; 3 * CHUNK_LEN + 7]);
+    hasher.update(&[42; 3 * DEFAULT_CHUNK_LEN + 7]);
     hasher.reset();
-    hasher.update(&[42; CHUNK_LEN + 3]);
-    assert_eq!(hasher.finalize(), crate::hash(&[42; CHUNK_LEN + 3]));
+    hasher.update(&[42; DEFAULT_CHUNK_LEN + 3]);
+    assert_eq!(hasher.finalize(), crate::hash(&[42; DEFAULT_CHUNK_LEN + 3]));
 
     let key = &[99; crate::KEY_LEN];
     let mut keyed_hasher = crate::Hasher::new_keyed(key);
-    keyed_hasher.update(&[42; 3 * CHUNK_LEN + 7]);
+    keyed_hasher.update(&[42; 3 * DEFAULT_CHUNK_LEN + 7]);
     keyed_hasher.reset();
-    keyed_hasher.update(&[42; CHUNK_LEN + 3]);
+    keyed_hasher.update(&[42; DEFAULT_CHUNK_LEN + 3]);
     assert_eq!(
         keyed_hasher.finalize(),
-        crate::keyed_hash(key, &[42; CHUNK_LEN + 3]),
+        crate::keyed_hash(key, &[42; DEFAULT_CHUNK_LEN + 3]),
     );
 
     let context = "BLAKE3 2020-02-12 10:20:58 reset test";
     let mut kdf = crate::Hasher::new_derive_key(context);
-    kdf.update(&[42; 3 * CHUNK_LEN + 7]);
+    kdf.update(&[42; 3 * DEFAULT_CHUNK_LEN + 7]);
     kdf.reset();
-    kdf.update(&[42; CHUNK_LEN + 3]);
-    let expected = crate::derive_key(context, &[42; CHUNK_LEN + 3]);
+    kdf.update(&[42; DEFAULT_CHUNK_LEN + 3]);
+    let expected = crate::derive_key(context, &[42; DEFAULT_CHUNK_LEN + 3]);
     assert_eq!(kdf.finalize(), expected);
 }
 
@@ -635,7 +635,7 @@ const fn test_hash_const_conversions() {
 #[test]
 fn test_fixed_compress_chunk_single_chunk() {
     let mut byte_gen = repeat((0..255).into_iter()).flatten();
-    let input: [u8; CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
+    let input: [u8; DEFAULT_CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
 
     let fixed_out = compress_fixed_parallel(&[input]);
     let mut ground_truth_raw = [0; 32];
