@@ -651,9 +651,12 @@ fn compress_chunks_parallel_chunked_input<'a, const CHUNK_LEN: usize>(
         chunks_array_raw.push(this_chunk.clone());
     }
 
-    let chunks_array = (0..chunks_array_raw.len())
+    let chunks_array: ArrayVec<&[u8; CHUNK_LEN], MAX_SIMD_DEGREE> = (0..chunks_array_raw.len())
         .map(|i| &chunks_array_raw[i])
-        .collect::<ArrayVec<_, MAX_SIMD_DEGREE>>();
+        .collect::<_>();
+
+    dbg!(CHUNK_LEN);
+    dbg!(chunks_array.len());
 
     platform.hash_many(
         &chunks_array,

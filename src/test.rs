@@ -633,12 +633,44 @@ const fn test_hash_const_conversions() {
 }
 
 #[test]
-fn test_fixed_compress_chunk_single_chunk() {
+fn test_fixed_compress_single_chunk() {
     let mut byte_gen = repeat((0..255).into_iter()).flatten();
+
     let input: [u8; DEFAULT_CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
 
     let fixed_out = compress_fixed_parallel(&[input]);
     let mut ground_truth_raw = [0; 32];
     compress_chunks_parallel(&input, IV, 0, 0, Platform::detect(), &mut ground_truth_raw);
     assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
+}
+
+#[test]
+fn test_fixed_compress_single_chunk_randomized() {
+    let mut rng = rand_chacha::ChaCha8Rng::from_seed([1; 32]);
+
+    let input: [u8; DEFAULT_CHUNK_LEN] = core::array::from_fn(|_| rng.gen());
+
+    let fixed_out = compress_fixed_parallel(&[input]);
+    let mut ground_truth_raw = [0; 32];
+    compress_chunks_parallel(&input, IV, 0, 0, Platform::detect(), &mut ground_truth_raw);
+    assert_eq!(Hash(ground_truth_raw), fixed_out[0]);
+}
+
+// Test a different value of CHUNK_LEN. We have no ground truth to compare this to, because the
+// actual Blake3 implementation only supports CHUNK_LEN = 1024.
+macro_rules! test_given_chunk_len {
+    ($chunk_len:expr) => {
+        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1; 32]);
+
+        let input: [u8; $chunk_len] = core::array::from_fn(|_| rng.gen());
+
+        let _fixed_out = compress_fixed_parallel(&[input]);
+    }
+}
+
+#[test]
+fn test_fixed_compress_single_chunk_various_lens() {
+    test_given_chunk_len!(512);
+    test_given_chunk_len!(1024);
+    test_given_chunk_len!(2048);
 }
