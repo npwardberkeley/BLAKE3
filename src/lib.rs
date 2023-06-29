@@ -655,9 +655,6 @@ fn compress_chunks_parallel_chunked_input<'a, const CHUNK_LEN: usize>(
         .map(|i| &chunks_array_raw[i])
         .collect::<_>();
 
-    dbg!(CHUNK_LEN);
-    dbg!(chunks_array.len());
-
     platform.hash_many(
         &chunks_array,
         key,
