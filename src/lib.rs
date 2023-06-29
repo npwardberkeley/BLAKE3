@@ -121,6 +121,12 @@ use core::cmp;
 use core::fmt;
 use platform::{Platform, MAX_SIMD_DEGREE, MAX_SIMD_DEGREE_OR_2};
 
+#[cfg(feature = "rayon")]
+use rayon::{
+    prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
+    slice::{ParallelSlice, ParallelSliceMut},
+};
+
 /// The number of bytes in a [`Hash`](struct.Hash.html), 32.
 pub const OUT_LEN: usize = 32;
 
@@ -573,7 +579,10 @@ fn left_len(content_len: usize) -> usize {
     largest_power_of_two_leq(full_chunks) * DEFAULT_CHUNK_LEN
 }
 
-/// Compress in parallel multiple pieces of input.
+#[cfg(feature = "rayon")]
+/// Compress and hash multiple pieces of input in parallel.
+///
+/// Unlike the rest of the library, this function does not hash multiple chunks together into a single hash. Instead, it returns the intermediate hashes.
 pub fn compress_fixed_parallel<const CHUNK_LEN: usize, const VSIZE: usize>(
     inputs: &[[u8; CHUNK_LEN]; VSIZE],
 ) -> [Hash; VSIZE] {
@@ -582,28 +591,37 @@ pub fn compress_fixed_parallel<const CHUNK_LEN: usize, const VSIZE: usize>(
     let platform = Platform::detect();
     let flags = 0; // TODO: Make a generic for testing...
 
-    // TODO: Make loop parallel...
-    for (c_idx, input) in inputs.chunks(MAX_SIMD_DEGREE_OR_2).enumerate() {
-        let chunk_start_idx = c_idx * MAX_SIMD_DEGREE_OR_2;
-        let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
+    // Note that there are two levels of parallelism here.
+    // The first is with SIMD instructions, where we can process multiple inputs on a single thread using instructions that read/write to multiple memory locations at once. This occurs within `compress_chunks_parallel_chunked_input`.
+    // The other level of parallelism occurs at the thread level, where we rely on Rayon.
+    // So these lines here are breaking the input/output slices into chunks of the max size inputs that we can perform SIMD instructions on.
+    let input_slices = inputs.par_chunks(MAX_SIMD_DEGREE_OR_2);
+    let output_hash_slices = out_hashes.par_chunks_mut(32 * MAX_SIMD_DEGREE_OR_2);
+    let par_iter_input_and_output_chunks = input_slices.zip(output_hash_slices);
 
-        // Remainder is always empty in our case?
-        compress_chunks_parallel_chunked_input::<CHUNK_LEN>(
-            input.iter().map(|x| x.as_ref()),
-            &[],
-            key,
-            (c_idx * MAX_SIMD_DEGREE) as u64,
-            flags,
-            platform,
-            &mut out_bytes,
-        );
+    par_iter_input_and_output_chunks
+        .enumerate()
+        .for_each(move |(c_idx, (input, out_hashes))| {
+            let chunk_start_idx = c_idx * MAX_SIMD_DEGREE_OR_2;
+            let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
 
-        let rem_hashes = input.len() - chunk_start_idx;
-        let num_hashes = MAX_SIMD_DEGREE_OR_2.min(rem_hashes);
-        for (i, b) in out_bytes.array_chunks::<32>().enumerate().take(num_hashes) {
-            out_hashes[chunk_start_idx + i] = Hash(*b);
-        }
-    }
+            // Remainder is always empty in our case?
+            compress_chunks_parallel_chunked_input::<CHUNK_LEN>(
+                input.iter().map(|x| x.as_ref()),
+                &[],
+                key,
+                (c_idx * MAX_SIMD_DEGREE) as u64,
+                flags,
+                platform,
+                &mut out_bytes,
+            );
+
+            let rem_hashes = input.len() - chunk_start_idx;
+            let num_hashes = MAX_SIMD_DEGREE_OR_2.min(rem_hashes);
+            for (i, b) in out_bytes.array_chunks::<32>().enumerate().take(num_hashes) {
+                out_hashes[i] = Hash(*b);
+            }
+        });
 
     out_hashes
 }
