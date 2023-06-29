@@ -683,7 +683,7 @@ fn test_fixed_compress_single_chunk_randomized_512() {
 // Test a different value of CHUNK_LEN. We have no ground truth to compare this to, because the
 // actual Blake3 implementation only supports CHUNK_LEN = 1024.
 macro_rules! test_given_chunk_len {
-    ($chunk_len:expr) => {
+    ($chunk_len:literal) => {
         let mut rng = rand_chacha::ChaCha8Rng::from_seed([1; 32]);
 
         let input: [u8; $chunk_len] = core::array::from_fn(|_| rng.gen());
