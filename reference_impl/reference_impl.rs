@@ -15,14 +15,13 @@
 //! let mut extended_hash = [0; 500];
 //! hasher.finalize(&mut extended_hash);
 //! assert_eq!(hash, extended_hash[..32]);
-//! ```
 
+use arrayref::array_mut_ref;
 use core::cmp::min;
 
 const OUT_LEN: usize = 32;
 const KEY_LEN: usize = 32;
 const BLOCK_LEN: usize = 64;
-const CHUNK_LEN: usize = 1024;
 
 const CHUNK_START: u32 = 1 << 0;
 const CHUNK_END: u32 = 1 << 1;
@@ -273,7 +272,7 @@ fn parent_cv(
 }
 
 /// An incremental hasher that can accept any number of writes.
-pub struct Hasher {
+pub struct Hasher<const CHUNK_LEN: usize> {
     chunk_state: ChunkState,
     key_words: [u32; 8],
     cv_stack: [[u32; 8]; 54], // Space for 54 subtree chaining values:
@@ -281,7 +280,7 @@ pub struct Hasher {
     flags: u32,
 }
 
-impl Hasher {
+impl<const CHUNK_LEN: usize> Hasher<CHUNK_LEN> {
     fn new_internal(key_words: [u32; 8], flags: u32) -> Self {
         Self {
             chunk_state: ChunkState::new(key_words, 0, flags),
@@ -380,4 +379,48 @@ impl Hasher {
         }
         output.root_output_bytes(out_slice);
     }
+}
+
+pub fn le_bytes_from_words_32(words: &[u32; 8]) -> [u8; 32] {
+    let mut out = [0; 32];
+    *array_mut_ref!(out, 0 * 4, 4) = words[0].to_le_bytes();
+    *array_mut_ref!(out, 1 * 4, 4) = words[1].to_le_bytes();
+    *array_mut_ref!(out, 2 * 4, 4) = words[2].to_le_bytes();
+    *array_mut_ref!(out, 3 * 4, 4) = words[3].to_le_bytes();
+    *array_mut_ref!(out, 4 * 4, 4) = words[4].to_le_bytes();
+    *array_mut_ref!(out, 5 * 4, 4) = words[5].to_le_bytes();
+    *array_mut_ref!(out, 6 * 4, 4) = words[6].to_le_bytes();
+    *array_mut_ref!(out, 7 * 4, 4) = words[7].to_le_bytes();
+    out
+}
+
+pub fn compress_fixed<const CHUNK_LEN: usize, const VSIZE: usize>(
+    inputs: &[[u8; CHUNK_LEN]; VSIZE],
+) -> [[u8; 32]; VSIZE] {
+    let key = IV;
+    let mut out_hashes = [[0; 32]; VSIZE];
+    let flags = 0; // TODO: Make a generic for testing...
+
+    for (i, input) in inputs.iter().enumerate() {
+        let mut cv = key;
+        let mut block_flags = flags | CHUNK_START;
+        let mut slice = &input[..];
+        while slice.len() >= BLOCK_LEN {
+            if slice.len() == BLOCK_LEN {
+                block_flags |= CHUNK_END;
+            }
+            cv = first_8_words(compress(
+                &mut cv,
+                &(0..16).map(|i| u32::from_le_bytes(slice[4 * i..4 * (i + 1)].try_into().unwrap())).collect::<Vec<u32>>().try_into().unwrap(),
+                i as u64,
+                BLOCK_LEN as u32,
+                block_flags,
+            ));
+            block_flags = flags;
+            slice = &slice[BLOCK_LEN..];
+        }
+        out_hashes[i] = le_bytes_from_words_32(&cv);
+    }
+
+    out_hashes
 }

@@ -7,8 +7,6 @@ use arrayvec::ArrayVec;
 use core::{iter::repeat, usize};
 use rand::prelude::*;
 
-use variable_chunk_len_reference_impl::compress_fixed_reference;
-
 // Interesting input lengths to run tests on.
 pub const TEST_CASES: &[usize] = &[
     0,
@@ -226,7 +224,7 @@ fn test_reference_impl_size() {
     // that happens, we can either disable this test, or test for multiple
     // expected values. For now, the purpose of this test is to make sure we
     // notice if that happens.
-    assert_eq!(1880, core::mem::size_of::<reference_impl::Hasher>());
+    assert_eq!(1880, core::mem::size_of::<reference_impl::Hasher::<DEFAULT_CHUNK_LEN>>());
 }
 
 #[test]
@@ -290,7 +288,7 @@ fn test_compare_reference_impl() {
 
         // regular
         {
-            let mut reference_hasher = reference_impl::Hasher::new();
+            let mut reference_hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new();
             reference_hasher.update(input);
             let mut expected_out = [0; OUT];
             reference_hasher.finalize(&mut expected_out);
@@ -319,7 +317,7 @@ fn test_compare_reference_impl() {
 
         // keyed
         {
-            let mut reference_hasher = reference_impl::Hasher::new_keyed(&TEST_KEY);
+            let mut reference_hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_keyed(&TEST_KEY);
             reference_hasher.update(input);
             let mut expected_out = [0; OUT];
             reference_hasher.finalize(&mut expected_out);
@@ -349,7 +347,7 @@ fn test_compare_reference_impl() {
         // derive_key
         {
             let context = "BLAKE3 2019-12-27 16:13:59 example context (not the test vector one)";
-            let mut reference_hasher = reference_impl::Hasher::new_derive_key(context);
+            let mut reference_hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_derive_key(context);
             reference_hasher.update(input);
             let mut expected_out = [0; OUT];
             reference_hasher.finalize(&mut expected_out);
@@ -379,7 +377,7 @@ fn test_compare_reference_impl() {
 }
 
 fn reference_hash(input: &[u8]) -> crate::Hash {
-    let mut hasher = reference_impl::Hasher::new();
+    let mut hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new();
     hasher.update(input);
     let mut bytes = [0; 32];
     hasher.finalize(&mut bytes);
@@ -691,7 +689,7 @@ macro_rules! test_given_chunk_len {
         let input: [u8; $chunk_len] = core::array::from_fn(|_| rng.gen());
 
         let fixed_out = compress_fixed_parallel(&[input]);
-        let ground_truth = compress_fixed_reference(&[input]);
+        let ground_truth = reference_impl::compress_fixed(&[input]);
         assert_eq!(ground_truth[0], fixed_out[0].0);
     }
 }
