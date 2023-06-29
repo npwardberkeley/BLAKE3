@@ -74,7 +74,9 @@ mod test {
     fn test_chunk() {
         assert_eq!(
             crate::hash(b"foo"),
-            ChunkState::<DEFAULT_CHUNK_LEN>::new(0).update(b"foo").finalize(true)
+            ChunkState::<DEFAULT_CHUNK_LEN>::new(0)
+                .update(b"foo")
+                .finalize(true)
         );
     }
 
@@ -85,14 +87,20 @@ mod test {
 
         buf[0] = b'a';
         hasher.update(&buf);
-        let chunk0_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(0).update(&buf).finalize(false);
+        let chunk0_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(0)
+            .update(&buf)
+            .finalize(false);
 
         buf[0] = b'b';
         hasher.update(&buf);
-        let chunk1_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(1).update(&buf).finalize(false);
+        let chunk1_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(1)
+            .update(&buf)
+            .finalize(false);
 
         hasher.update(b"c");
-        let chunk2_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(2).update(b"c").finalize(false);
+        let chunk2_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(2)
+            .update(b"c")
+            .finalize(false);
 
         let parent = parent_cv(&chunk0_cv, &chunk1_cv, false);
         let root = parent_cv(&parent, &chunk2_cv, true);

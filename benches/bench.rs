@@ -53,7 +53,7 @@ fn bench_single_compression_fn(b: &mut Bencher, platform: Platform) {
     let mut state = [1u32; 8];
     let mut r = RandomInput::new(b, 64);
     let input = array_ref!(r.get(), 0, 64);
-    b.iter(|| platform.compress_in_place(&mut state, input, 64 as u8, 0, 0));
+    b.iter(|| platform.compress_in_place(&mut state, input, 64_u8, 0, 0));
 }
 
 #[bench]
@@ -230,7 +230,7 @@ fn bench_atonce_0001_block(b: &mut Bencher) {
 
 #[bench]
 fn bench_atonce_0001_kib(b: &mut Bencher) {
-    bench_atonce(b, 1 * KIB);
+    bench_atonce(b, KIB);
 }
 
 #[bench]
@@ -295,7 +295,7 @@ fn bench_incremental_0001_block(b: &mut Bencher) {
 
 #[bench]
 fn bench_incremental_0001_kib(b: &mut Bencher) {
-    bench_incremental(b, 1 * KIB);
+    bench_incremental(b, KIB);
 }
 
 #[bench]
@@ -366,7 +366,7 @@ fn bench_reference_0001_block(b: &mut Bencher) {
 
 #[bench]
 fn bench_reference_0001_kib(b: &mut Bencher) {
-    bench_reference(b, 1 * KIB);
+    bench_reference(b, KIB);
 }
 
 #[bench]

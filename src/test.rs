@@ -91,8 +91,7 @@ pub fn test_compress_fn(compress_in_place_fn: CompressInPlaceFn, compress_xof_fn
     let mut test_state = initial_state;
     unsafe { compress_in_place_fn(&mut test_state, &block, block_len, counter, flags) };
     let test_state_bytes = crate::platform::le_bytes_from_words_32(&test_state);
-    let test_xof =
-        unsafe { compress_xof_fn(&initial_state, &block, block_len, counter, flags) };
+    let test_xof = unsafe { compress_xof_fn(&initial_state, &block, block_len, counter, flags) };
 
     assert_eq!(&portable_out[..32], &test_state_bytes[..]);
     assert_eq!(&portable_out[..], &test_xof[..]);
@@ -132,7 +131,11 @@ pub fn test_hash_many_fn(
         // First hash chunks.
         let mut chunks = ArrayVec::<&[u8; DEFAULT_CHUNK_LEN], NUM_INPUTS>::new();
         for i in 0..NUM_INPUTS {
-            chunks.push(array_ref!(input_buf, i * DEFAULT_CHUNK_LEN, DEFAULT_CHUNK_LEN));
+            chunks.push(array_ref!(
+                input_buf,
+                i * DEFAULT_CHUNK_LEN,
+                DEFAULT_CHUNK_LEN
+            ));
         }
         let mut portable_chunks_out = [0; NUM_INPUTS * OUT_LEN];
         crate::portable::hash_many(
@@ -224,7 +227,10 @@ fn test_reference_impl_size() {
     // that happens, we can either disable this test, or test for multiple
     // expected values. For now, the purpose of this test is to make sure we
     // notice if that happens.
-    assert_eq!(1880, core::mem::size_of::<reference_impl::Hasher::<DEFAULT_CHUNK_LEN>>());
+    assert_eq!(
+        1880,
+        core::mem::size_of::<reference_impl::Hasher::<DEFAULT_CHUNK_LEN>>()
+    );
 }
 
 #[test]
@@ -317,7 +323,8 @@ fn test_compare_reference_impl() {
 
         // keyed
         {
-            let mut reference_hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_keyed(&TEST_KEY);
+            let mut reference_hasher =
+                reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_keyed(&TEST_KEY);
             reference_hasher.update(input);
             let mut expected_out = [0; OUT];
             reference_hasher.finalize(&mut expected_out);
@@ -347,7 +354,8 @@ fn test_compare_reference_impl() {
         // derive_key
         {
             let context = "BLAKE3 2019-12-27 16:13:59 example context (not the test vector one)";
-            let mut reference_hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_derive_key(context);
+            let mut reference_hasher =
+                reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new_derive_key(context);
             reference_hasher.update(input);
             let mut expected_out = [0; OUT];
             reference_hasher.finalize(&mut expected_out);
@@ -475,22 +483,13 @@ fn test_xof_seek() {
         reader.by_ref().take(102).read_to_end(&mut out3).unwrap();
         assert_eq!(&out[303..][..102], &out3[..]);
 
-        assert_eq!(
-            reader.stream_position().unwrap(),
-            303 + 102
-        );
+        assert_eq!(reader.stream_position().unwrap(), 303 + 102);
         reader.seek(std::io::SeekFrom::Current(-5)).unwrap();
-        assert_eq!(
-            reader.stream_position().unwrap(),
-            303 + 102 - 5
-        );
+        assert_eq!(reader.stream_position().unwrap(), 303 + 102 - 5);
         let mut out4 = [0; 17];
         assert_eq!(reader.read(&mut out4).unwrap(), 17);
         assert_eq!(&out[303 + 102 - 5..][..17], &out4[..]);
-        assert_eq!(
-            reader.stream_position().unwrap(),
-            303 + 102 - 5 + 17
-        );
+        assert_eq!(reader.stream_position().unwrap(), 303 + 102 - 5 + 17);
         assert!(reader.seek(std::io::SeekFrom::End(0)).is_err());
         assert!(reader.seek(std::io::SeekFrom::Current(-1000)).is_err());
     }
@@ -635,7 +634,7 @@ const fn test_hash_const_conversions() {
 
 #[test]
 fn test_fixed_compress_single_chunk() {
-    let mut byte_gen = repeat((0..255)).flatten();
+    let mut byte_gen = repeat(0..255).flatten();
 
     let input: [u8; DEFAULT_CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
 
@@ -692,7 +691,7 @@ macro_rules! test_given_chunk_len {
         let fixed_out = compress_fixed_parallel(&[input]);
         let ground_truth = reference_impl::compress_fixed(&[input]);
         assert_eq!(ground_truth[0], fixed_out[0].0);
-    }
+    };
 }
 
 #[test]
