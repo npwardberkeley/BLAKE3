@@ -1,11 +1,13 @@
 use crate::{
     compress_chunks_parallel, compress_fixed_parallel, platform::Platform, CVBytes, CVWords, Hash,
-    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN, portable::test,
+    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
 };
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
 use core::{iter::repeat, usize};
 use rand::prelude::*;
+
+use variable_chunk_len_reference_impl::compress_fixed_reference;
 
 // Interesting input lengths to run tests on.
 pub const TEST_CASES: &[usize] = &[
@@ -688,7 +690,9 @@ macro_rules! test_given_chunk_len {
 
         let input: [u8; $chunk_len] = core::array::from_fn(|_| rng.gen());
 
-        let _fixed_out = compress_fixed_parallel(&[input]);
+        let fixed_out = compress_fixed_parallel(&[input]);
+        let ground_truth = compress_fixed_reference(&[input]);
+        assert_eq!(ground_truth[0], fixed_out[0].0);
     }
 }
 
