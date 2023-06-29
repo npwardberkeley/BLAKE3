@@ -418,7 +418,7 @@ pub fn sse2_detected() -> bool {
 pub fn words_from_le_bytes_32(bytes: &[u8; 32]) -> [u32; 8] {
     let mut out = [0; 8];
     out[0] = u32::from_le_bytes(*array_ref!(bytes, 0 * 4, 4));
-    out[1] = u32::from_le_bytes(*array_ref!(bytes, 1 * 4, 4));
+    out[1] = u32::from_le_bytes(*array_ref!(bytes, 4, 4));
     out[2] = u32::from_le_bytes(*array_ref!(bytes, 2 * 4, 4));
     out[3] = u32::from_le_bytes(*array_ref!(bytes, 3 * 4, 4));
     out[4] = u32::from_le_bytes(*array_ref!(bytes, 4 * 4, 4));
@@ -432,7 +432,7 @@ pub fn words_from_le_bytes_32(bytes: &[u8; 32]) -> [u32; 8] {
 pub fn words_from_le_bytes_64(bytes: &[u8; 64]) -> [u32; 16] {
     let mut out = [0; 16];
     out[0] = u32::from_le_bytes(*array_ref!(bytes, 0 * 4, 4));
-    out[1] = u32::from_le_bytes(*array_ref!(bytes, 1 * 4, 4));
+    out[1] = u32::from_le_bytes(*array_ref!(bytes, 4, 4));
     out[2] = u32::from_le_bytes(*array_ref!(bytes, 2 * 4, 4));
     out[3] = u32::from_le_bytes(*array_ref!(bytes, 3 * 4, 4));
     out[4] = u32::from_le_bytes(*array_ref!(bytes, 4 * 4, 4));
@@ -454,7 +454,7 @@ pub fn words_from_le_bytes_64(bytes: &[u8; 64]) -> [u32; 16] {
 pub fn le_bytes_from_words_32(words: &[u32; 8]) -> [u8; 32] {
     let mut out = [0; 32];
     *array_mut_ref!(out, 0 * 4, 4) = words[0].to_le_bytes();
-    *array_mut_ref!(out, 1 * 4, 4) = words[1].to_le_bytes();
+    *array_mut_ref!(out, 4, 4) = words[1].to_le_bytes();
     *array_mut_ref!(out, 2 * 4, 4) = words[2].to_le_bytes();
     *array_mut_ref!(out, 3 * 4, 4) = words[3].to_le_bytes();
     *array_mut_ref!(out, 4 * 4, 4) = words[4].to_le_bytes();
@@ -468,7 +468,7 @@ pub fn le_bytes_from_words_32(words: &[u32; 8]) -> [u8; 32] {
 pub fn le_bytes_from_words_64(words: &[u32; 16]) -> [u8; 64] {
     let mut out = [0; 64];
     *array_mut_ref!(out, 0 * 4, 4) = words[0].to_le_bytes();
-    *array_mut_ref!(out, 1 * 4, 4) = words[1].to_le_bytes();
+    *array_mut_ref!(out, 4, 4) = words[1].to_le_bytes();
     *array_mut_ref!(out, 2 * 4, 4) = words[2].to_le_bytes();
     *array_mut_ref!(out, 3 * 4, 4) = words[3].to_le_bytes();
     *array_mut_ref!(out, 4 * 4, 4) = words[4].to_le_bytes();

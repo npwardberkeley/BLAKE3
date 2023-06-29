@@ -4,7 +4,7 @@ extern crate test;
 
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
-use blake3::guts::{BLOCK_LEN, CHUNK_LEN};
+use blake3::guts::{BLOCK_LEN, DEFAULT_CHUNK_LEN};
 use blake3::platform::{Platform, MAX_SIMD_DEGREE};
 use blake3::OUT_LEN;
 use rand::prelude::*;
@@ -89,13 +89,13 @@ fn bench_many_chunks_fn(b: &mut Bencher, platform: Platform) {
     let degree = platform.simd_degree();
     let mut inputs = Vec::new();
     for _ in 0..degree {
-        inputs.push(RandomInput::new(b, CHUNK_LEN));
+        inputs.push(RandomInput::new(b, DEFAULT_CHUNK_LEN));
     }
     b.iter(|| {
-        let input_arrays: ArrayVec<&[u8; CHUNK_LEN], MAX_SIMD_DEGREE> = inputs
+        let input_arrays: ArrayVec<&[u8; DEFAULT_CHUNK_LEN], MAX_SIMD_DEGREE> = inputs
             .iter_mut()
             .take(degree)
-            .map(|i| array_ref!(i.get(), 0, CHUNK_LEN))
+            .map(|i| array_ref!(i.get(), 0, DEFAULT_CHUNK_LEN))
             .collect();
         let mut out = [0; MAX_SIMD_DEGREE * OUT_LEN];
         platform.hash_many(
@@ -351,7 +351,7 @@ fn bench_incremental_1024_kib(b: &mut Bencher) {
 fn bench_reference(b: &mut Bencher, len: usize) {
     let mut input = RandomInput::new(b, len);
     b.iter(|| {
-        let mut hasher = reference_impl::Hasher::new();
+        let mut hasher = reference_impl::Hasher::<DEFAULT_CHUNK_LEN>::new();
         hasher.update(input.get());
         let mut out = [0; 32];
         hasher.finalize(&mut out);

@@ -83,11 +83,11 @@ mod test {
         let mut hasher = crate::Hasher::new();
         let mut buf = [0; crate::DEFAULT_CHUNK_LEN];
 
-        buf[0] = 'a' as u8;
+        buf[0] = b'a';
         hasher.update(&buf);
         let chunk0_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(0).update(&buf).finalize(false);
 
-        buf[0] = 'b' as u8;
+        buf[0] = b'b';
         hasher.update(&buf);
         let chunk1_cv = ChunkState::<DEFAULT_CHUNK_LEN>::new(1).update(&buf).finalize(false);
 

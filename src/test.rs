@@ -86,13 +86,13 @@ pub fn test_compress_fn(compress_in_place_fn: CompressInPlaceFn, compress_xof_fn
     let flags = crate::CHUNK_END | crate::ROOT | crate::KEYED_HASH;
 
     let portable_out =
-        crate::portable::compress_xof(&initial_state, &block, block_len, counter as u64, flags);
+        crate::portable::compress_xof(&initial_state, &block, block_len, counter, flags);
 
     let mut test_state = initial_state;
-    unsafe { compress_in_place_fn(&mut test_state, &block, block_len, counter as u64, flags) };
+    unsafe { compress_in_place_fn(&mut test_state, &block, block_len, counter, flags) };
     let test_state_bytes = crate::platform::le_bytes_from_words_32(&test_state);
     let test_xof =
-        unsafe { compress_xof_fn(&initial_state, &block, block_len, counter as u64, flags) };
+        unsafe { compress_xof_fn(&initial_state, &block, block_len, counter, flags) };
 
     assert_eq!(&portable_out[..32], &test_state_bytes[..]);
     assert_eq!(&portable_out[..], &test_xof[..]);
@@ -476,19 +476,19 @@ fn test_xof_seek() {
         assert_eq!(&out[303..][..102], &out3[..]);
 
         assert_eq!(
-            reader.seek(std::io::SeekFrom::Current(0)).unwrap(),
+            reader.stream_position().unwrap(),
             303 + 102
         );
         reader.seek(std::io::SeekFrom::Current(-5)).unwrap();
         assert_eq!(
-            reader.seek(std::io::SeekFrom::Current(0)).unwrap(),
+            reader.stream_position().unwrap(),
             303 + 102 - 5
         );
         let mut out4 = [0; 17];
         assert_eq!(reader.read(&mut out4).unwrap(), 17);
         assert_eq!(&out[303 + 102 - 5..][..17], &out4[..]);
         assert_eq!(
-            reader.seek(std::io::SeekFrom::Current(0)).unwrap(),
+            reader.stream_position().unwrap(),
             303 + 102 - 5 + 17
         );
         assert!(reader.seek(std::io::SeekFrom::End(0)).is_err());
@@ -590,7 +590,8 @@ fn test_hex_encoding_decoding() {
 #[test]
 fn test_issue_206_windows_sse2() {
     // This stupid loop has to be here to trigger the bug. I don't know why.
-    for _ in &[0] {
+    {
+        let _ = &0;
         // The length 65 (two blocks) is significant. It doesn't repro with 64 (one block). It also
         // doesn't repro with an all-zero input.
         let input = &[0xff; 65];
@@ -634,7 +635,7 @@ const fn test_hash_const_conversions() {
 
 #[test]
 fn test_fixed_compress_single_chunk() {
-    let mut byte_gen = repeat((0..255).into_iter()).flatten();
+    let mut byte_gen = repeat((0..255)).flatten();
 
     let input: [u8; DEFAULT_CHUNK_LEN] = core::array::from_fn(|_| byte_gen.next().unwrap());
 

@@ -583,13 +583,13 @@ pub fn compress_fixed_parallel<const CHUNK_LEN: usize, const VSIZE: usize>(
     let flags = 0; // TODO: Make a generic for testing...
 
     // TODO: Make loop parallel...
-    for (c_idx, input) in inputs.chunks(MAX_SIMD_DEGREE_OR_2).into_iter().enumerate() {
+    for (c_idx, input) in inputs.chunks(MAX_SIMD_DEGREE_OR_2).enumerate() {
         let chunk_start_idx = c_idx * MAX_SIMD_DEGREE_OR_2;
         let mut out_bytes = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
 
         // Remainder is always empty in our case?
         compress_chunks_parallel_chunked_input::<CHUNK_LEN>(
-            input.into_iter().map(|x| x.as_ref()),
+            input.iter().map(|x| x.as_ref()),
             &[],
             key,
             (c_idx * MAX_SIMD_DEGREE) as u64,
@@ -648,7 +648,7 @@ fn compress_chunks_parallel_chunked_input<'a, const CHUNK_LEN: usize>(
     let mut chunks_array_raw = ArrayVec::<[u8; CHUNK_LEN], MAX_SIMD_DEGREE>::new();
     for chunk in &mut chunks_exact {
         let this_chunk: [u8; CHUNK_LEN] = chunk[0..CHUNK_LEN].try_into().unwrap();
-        chunks_array_raw.push(this_chunk.clone());
+        chunks_array_raw.push(this_chunk);
     }
 
     let chunks_array: ArrayVec<&[u8; CHUNK_LEN], MAX_SIMD_DEGREE> = (0..chunks_array_raw.len())
@@ -827,7 +827,7 @@ fn compress_subtree_to_parent_node<J: join::Join>(
     debug_assert!(input.len() > DEFAULT_CHUNK_LEN);
     let mut cv_array = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
     let mut num_cvs =
-        compress_subtree_wide::<J>(input, &key, chunk_counter, flags, platform, &mut cv_array);
+        compress_subtree_wide::<J>(input, key, chunk_counter, flags, platform, &mut cv_array);
     debug_assert!(num_cvs >= 2);
 
     // If MAX_SIMD_DEGREE is greater than 2 and there's enough input,
