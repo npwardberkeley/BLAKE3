@@ -637,6 +637,41 @@ pub fn hash_many_wrapper(inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2]) -> CompressOut 
     CompressOut { intern: out_bytes }
 }
 
+seq!(N in 2..=3000 {
+    pub fn hash_list_~N(input: &[u8]) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2] {
+        assert!(N * MAX_SIMD_DEGREE_OR_2 == input.len());
+        let platform = Platform::detect();
+        let input_arrays: ArrayVec<&[u8; N], MAX_SIMD_DEGREE_OR_2> = (0..MAX_SIMD_DEGREE_OR_2)
+            .map(|i| array_ref!(input, i*N, N))
+            .collect();
+        let mut out = [0; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
+
+        platform.hash_many(
+            &input_arrays[..],
+            &[0; 8],
+            0,
+            IncrementCounter::No,
+            0,
+            0,
+            0,
+            &mut out,
+        );
+        out
+    }
+});
+
+type HashListFn = fn(&[u8]) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
+
+pub fn hash_list_wrapper(input: &[u8], input_size: usize) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2] {
+    let hash_list_fn: HashListFn = seq!(N in 2..=3000 { match input_size {
+            #( N => |input| hash_list_~N(input), )*
+            _ => panic!("Unsupported chunk size"),
+        }
+    });
+
+    hash_list_fn(input)
+}
+
 #[cfg(feature = "rayon")]
 /// Compress and hash multiple pieces of input in parallel.
 ///
