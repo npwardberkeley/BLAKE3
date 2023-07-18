@@ -1,5 +1,6 @@
 use crate::{portable, CVWords, IncrementCounter, BLOCK_LEN};
 use arrayref::{array_mut_ref, array_ref};
+use seq_macro::seq;
 
 cfg_if::cfg_if! {
     if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
@@ -175,6 +176,27 @@ impl Platform {
     // from block to block within a chunk. When state vectors are transposed
     // after every block, there's a small but measurable performance loss.
     // Compressing chunks with a dedicated loop avoids this.
+
+    seq!(N in 2..=3000 {
+        pub fn hash_many_~N(&self,
+            inputs: &[&[u8]],
+            key: &CVWords,
+            counter: u64,
+            increment_counter: IncrementCounter,
+            flags: u8,
+            flags_start: u8,
+            flags_end: u8,
+            out: &mut [u8],
+        ) {
+            let mut new_inputs: Vec<[u8; N]> = Vec::new();
+            for input in inputs {
+                let new_input: [u8; N] = input.clone().try_into().unwrap();
+                new_inputs.push(new_input);
+            }
+            let new_inputs_refs: Vec<&[u8; N]> = new_inputs.iter().map(|x| x).collect();
+            self.hash_many::<N>(&new_inputs_refs, key, counter, increment_counter, flags, flags_start, flags_end, out);
+        }
+    });
 
     pub fn hash_many<const N: usize>(
         &self,

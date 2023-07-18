@@ -120,6 +120,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use core::cmp;
 use core::fmt;
 use platform::{Platform, MAX_SIMD_DEGREE, MAX_SIMD_DEGREE_OR_2};
+use seq_macro::seq;
 
 #[cfg(feature = "rayon")]
 use rayon::{
@@ -577,6 +578,45 @@ fn left_len(content_len: usize) -> usize {
     // Subtract 1 to reserve at least one byte for the right side.
     let full_chunks = (content_len - 1) / DEFAULT_CHUNK_LEN;
     largest_power_of_two_leq(full_chunks) * DEFAULT_CHUNK_LEN
+}
+
+pub struct CompressOut {
+    pub intern: [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2],
+}
+
+impl CompressOut {
+    pub fn into_output_iter<'a>(&'a self) -> impl Iterator<Item = [u8; OUT_LEN]> + 'a {
+        self.intern.array_chunks::<OUT_LEN>().map(|c| *c)
+    }
+}
+
+pub fn hash_many_wrapper(
+    inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2],
+) -> CompressOut {
+    let platform = Platform::detect();
+    let key = [0; 8];
+    let mut out_bytes = [0; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
+
+    let input_size = inputs[0].len();
+    let hash_many_fn: fn(Platform, &[&[u8]], &CVWords, u64, IncrementCounter, u8, u8, u8, &mut [u8]) -> () =
+    seq!(N in 2..=3000 { match input_size {
+            #( N => |platform, inputs,key,counter,increment_counter,flags,flags_start,flags_end,out| platform.hash_many_~N(inputs,key,counter,increment_counter,flags,flags_start,flags_end,out), )*
+            _ => panic!("Unsupported chunk size"),
+        }
+    });
+
+    hash_many_fn(
+        platform,
+        inputs,
+        &key,
+        0,
+        IncrementCounter::No,
+        0,
+        0,
+        0,
+        &mut out_bytes,
+    );
+    CompressOut { intern: out_bytes }
 }
 
 #[cfg(feature = "rayon")]
