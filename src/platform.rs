@@ -193,7 +193,7 @@ impl Platform {
                 let new_input: [u8; N] = input.clone().try_into().unwrap();
                 new_inputs.push(new_input);
             }
-            let new_inputs_refs: Vec<&[u8; N]> = new_inputs.iter().map(|x| x).collect();
+            let new_inputs_refs: Vec<&[u8; N]> = new_inputs.iter().collect();
             self.hash_many::<N>(&new_inputs_refs, key, counter, increment_counter, flags, flags_start, flags_end, out);
         }
     });

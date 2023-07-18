@@ -434,7 +434,7 @@ fn bench_rayon_0001_block(b: &mut Bencher) {
 #[bench]
 #[cfg(feature = "rayon")]
 fn bench_rayon_0001_kib(b: &mut Bencher) {
-    bench_rayon(b, 1 * KIB);
+    bench_rayon(b, KIB);
 }
 
 #[bench]

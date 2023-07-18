@@ -1,5 +1,6 @@
 use crate::{
-    compress_chunks_parallel, compress_fixed_parallel, hash_many_wrapper, platform::{Platform, MAX_SIMD_DEGREE_OR_2},
+    compress_chunks_parallel, compress_fixed_parallel, hash_many_wrapper,
+    platform::{Platform, MAX_SIMD_DEGREE_OR_2},
     CVBytes, CVWords, Hash, IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
 };
 use arrayref::array_ref;
@@ -636,16 +637,16 @@ const fn test_hash_const_conversions() {
 fn test_hash_many_wrapper() {
     let mut byte_gen = repeat(0..255).flatten();
 
-    let input_arrays_vec: Vec<[u8; DEFAULT_CHUNK_LEN]> = (0..MAX_SIMD_DEGREE_OR_2).map(|_| {
-        core::array::from_fn(|_| byte_gen.next().unwrap())
-    }).collect();
+    let input_arrays_vec: Vec<[u8; DEFAULT_CHUNK_LEN]> = (0..MAX_SIMD_DEGREE_OR_2)
+        .map(|_| core::array::from_fn(|_| byte_gen.next().unwrap()))
+        .collect();
     let input_arrays_vec_cloned = input_arrays_vec.clone();
     let input_slices_vec: Vec<&[u8]> = input_arrays_vec_cloned.iter().map(|a| a.as_ref()).collect();
     let inputs: [&[u8]; MAX_SIMD_DEGREE_OR_2] = input_slices_vec.try_into().unwrap();
 
     let hashed = hash_many_wrapper(&inputs);
 
-    let input_refs_vec: Vec<&[u8; DEFAULT_CHUNK_LEN]> = input_arrays_vec.iter().map(|a| a).collect();
+    let input_refs_vec: Vec<&[u8; DEFAULT_CHUNK_LEN]> = input_arrays_vec.iter().collect();
     let platform = Platform::detect();
     let mut ground_truth = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
     platform.hash_many(

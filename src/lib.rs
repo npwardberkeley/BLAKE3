@@ -593,8 +593,8 @@ pub struct CompressOut {
 }
 
 impl CompressOut {
-    pub fn into_output_iter<'a>(&'a self) -> impl Iterator<Item = [u8; OUT_LEN]> + 'a {
-        self.intern.array_chunks::<OUT_LEN>().map(|c| *c)
+    pub fn into_output_iter(&self) -> impl Iterator<Item = [u8; OUT_LEN]> + '_ {
+        self.intern.array_chunks::<OUT_LEN>().copied()
     }
 }
 
