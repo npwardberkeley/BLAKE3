@@ -598,23 +598,25 @@ impl CompressOut {
     }
 }
 
+type HashManyFn = fn(
+    Platform,
+    &[&[u8]],
+    &CVWords,
+    u64,
+    IncrementCounter,
+    u8,
+    u8,
+    u8,
+    &mut [u8],
+) -> ();
+
 pub fn hash_many_wrapper(inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2]) -> CompressOut {
     let platform = Platform::detect();
     let key = [0; 8];
     let mut out_bytes = [0; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
 
     let input_size = inputs[0].len();
-    let hash_many_fn: fn(
-        Platform,
-        &[&[u8]],
-        &CVWords,
-        u64,
-        IncrementCounter,
-        u8,
-        u8,
-        u8,
-        &mut [u8],
-    ) -> () = seq!(N in 2..=3000 { match input_size {
+    let hash_many_fn: HashManyFn = seq!(N in 2..=3000 { match input_size {
             #( N => |platform, inputs,key,counter,increment_counter,flags,flags_start,flags_end,out| platform.hash_many_~N(inputs,key,counter,increment_counter,flags,flags_start,flags_end,out), )*
             _ => panic!("Unsupported chunk size"),
         }
