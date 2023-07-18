@@ -1,6 +1,6 @@
 use crate::{
-    compress_chunks_parallel, compress_fixed_parallel, platform::Platform, CVBytes, CVWords, Hash,
-    IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
+    compress_chunks_parallel, compress_fixed_parallel, hash_many_wrapper, platform::{Platform, MAX_SIMD_DEGREE_OR_2},
+    CVBytes, CVWords, Hash, IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
 };
 use arrayref::array_ref;
 use arrayvec::ArrayVec;
@@ -633,6 +633,36 @@ const fn test_hash_const_conversions() {
 }
 
 #[test]
+fn test_hash_many_wrapper() {
+    let mut byte_gen = repeat(0..255).flatten();
+
+    let input_arrays_vec: Vec<[u8; DEFAULT_CHUNK_LEN]> = (0..MAX_SIMD_DEGREE_OR_2).map(|_| {
+        core::array::from_fn(|_| byte_gen.next().unwrap())
+    }).collect();
+    let input_arrays_vec_cloned = input_arrays_vec.clone();
+    let input_slices_vec: Vec<&[u8]> = input_arrays_vec_cloned.iter().map(|a| a.as_ref()).collect();
+    let inputs: [&[u8]; MAX_SIMD_DEGREE_OR_2] = input_slices_vec.try_into().unwrap();
+
+    let hashed = hash_many_wrapper(&inputs);
+
+    let input_refs_vec: Vec<&[u8; DEFAULT_CHUNK_LEN]> = input_arrays_vec.iter().map(|a| a).collect();
+    let platform = Platform::detect();
+    let mut ground_truth = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
+    platform.hash_many(
+        &input_refs_vec,
+        &[0; 8],
+        0,
+        IncrementCounter::No,
+        0,
+        0,
+        0,
+        &mut ground_truth,
+    );
+
+    assert_eq!(hashed.intern, ground_truth);
+}
+
+#[test]
 fn test_fixed_compress_single_chunk() {
     let mut byte_gen = repeat(0..255).flatten();
 
@@ -705,4 +735,64 @@ fn test_fixed_compress_single_chunk_various_lens() {
     test_given_chunk_len!(2048);
     test_given_chunk_len!(3072);
     test_given_chunk_len!(4096);
+}
+#[cfg(feature = "zeroize")]
+#[test]
+fn test_zeroize() {
+    use zeroize::Zeroize;
+
+    let mut hash = crate::Hash([42; 32]);
+    hash.zeroize();
+    assert_eq!(hash.0, [0u8; 32]);
+
+    let mut hasher = crate::Hasher {
+        chunk_state: crate::ChunkState {
+            cv: [42; 8],
+            chunk_counter: 42,
+            buf: [42; 64],
+            buf_len: 42,
+            blocks_compressed: 42,
+            flags: 42,
+            platform: crate::Platform::Portable,
+        },
+        key: [42; 8],
+        cv_stack: [[42; 32]; { crate::MAX_DEPTH + 1 }].into(),
+    };
+    hasher.zeroize();
+    assert_eq!(hasher.chunk_state.cv, [0; 8]);
+    assert_eq!(hasher.chunk_state.chunk_counter, 0);
+    assert_eq!(hasher.chunk_state.buf, [0; 64]);
+    assert_eq!(hasher.chunk_state.buf_len, 0);
+    assert_eq!(hasher.chunk_state.blocks_compressed, 0);
+    assert_eq!(hasher.chunk_state.flags, 0);
+    assert!(matches!(
+        hasher.chunk_state.platform,
+        crate::Platform::Portable
+    ));
+    assert_eq!(hasher.key, [0; 8]);
+    assert_eq!(&*hasher.cv_stack, &[[0u8; 32]; 0]);
+
+    let mut output_reader = crate::OutputReader {
+        inner: crate::Output {
+            input_chaining_value: [42; 8],
+            block: [42; 64],
+            counter: 42,
+            block_len: 42,
+            flags: 42,
+            platform: crate::Platform::Portable,
+        },
+        position_within_block: 42,
+    };
+
+    output_reader.zeroize();
+    assert_eq!(output_reader.inner.input_chaining_value, [0; 8]);
+    assert_eq!(output_reader.inner.block, [0; 64]);
+    assert_eq!(output_reader.inner.counter, 0);
+    assert_eq!(output_reader.inner.block_len, 0);
+    assert_eq!(output_reader.inner.flags, 0);
+    assert!(matches!(
+        output_reader.inner.platform,
+        crate::Platform::Portable
+    ));
+    assert_eq!(output_reader.position_within_block, 0);
 }

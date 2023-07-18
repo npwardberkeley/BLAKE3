@@ -1,6 +1,6 @@
 [package]
 name = "blake3"
-version = "1.4.0"
+version = "1.4.1"
 authors = ["Jack O'Connor <oconnor663@gmail.com>", "Samuel Neves"]
 description = "the BLAKE3 hash function"
 repository = "https://github.com/BLAKE3-team/BLAKE3"
@@ -23,7 +23,7 @@ neon = []
 # --no-default-features, the only way to use the SIMD implementations in this
 # crate is to enable the corresponding instruction sets statically for the
 # entire build, with e.g. RUSTFLAGS="-C target-cpu=native".
-std = ["digest/std"]
+std = []
 
 # The "rayon" feature (defined below as an optional dependency) enables the
 # `Hasher::update_rayon` method, for multithreaded hashing. However, even if
@@ -77,18 +77,21 @@ no_avx2 = []
 no_avx512 = []
 no_neon = []
 
+zeroize = ["zeroize_crate", "arrayvec/zeroize"]
+
 [package.metadata.docs.rs]
 # Document Hasher::update_rayon on docs.rs.
 features = ["rayon"]
 
 [dependencies]
 arrayref = "0.3.5"
-arrayvec = { version = "0.7.0", default-features = false }
-constant_time_eq = "0.2.4"
+arrayvec = { version = "0.7.4", default-features = false }
+constant_time_eq = "0.3.0"
 rayon = { version = "1.2.1", optional = true }
 cfg-if = "1.0.0"
 digest = { version = "0.10.1", features = [ "mac" ], optional = true }
 seq-macro = "0.3.5"
+zeroize_crate = { package = "zeroize", version = "1", default-features = false, features = ["zeroize_derive"], optional = true }
 
 [dev-dependencies]
 blake3 = { path = ".", features = ["rayon"] }

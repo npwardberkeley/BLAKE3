@@ -68,6 +68,9 @@
 #![feature(array_chunks)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "zeroize")]
+extern crate zeroize_crate as zeroize; // Needed because `zeroize::Zeroize` assumes the crate is named `zeroize`.
+
 #[cfg(test)]
 mod test;
 
@@ -124,7 +127,7 @@ use seq_macro::seq;
 
 #[cfg(feature = "rayon")]
 use rayon::{
-    prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
+    prelude::{IndexedParallelIterator, ParallelIterator},
     slice::{ParallelSlice, ParallelSliceMut},
 };
 
@@ -205,6 +208,7 @@ fn counter_high(counter: u64) -> u32 {
 /// [`from_hex`]: #method.from_hex
 /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 #[derive(Clone, Copy, Hash)]
 pub struct Hash([u8; OUT_LEN]);
 
@@ -379,6 +383,7 @@ impl std::error::Error for HexError {}
 // Each chunk or parent node can produce either a 32-byte chaining value or, by
 // setting the ROOT flag, any number of final output bytes. The Output struct
 // captures the state just prior to choosing between those two possibilities.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 #[derive(Clone)]
 struct Output {
     input_chaining_value: CVWords,
@@ -386,6 +391,7 @@ struct Output {
     block_len: u8,
     counter: u64,
     flags: u8,
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
     platform: Platform,
 }
 
@@ -422,6 +428,7 @@ impl Output {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 struct ChunkState<const CHUNK_LEN: usize> {
     cv: CVWords,
     chunk_counter: u64,
@@ -429,6 +436,7 @@ struct ChunkState<const CHUNK_LEN: usize> {
     buf_len: u8,
     blocks_compressed: u8,
     flags: u8,
+    #[cfg_attr(feature = "zeroize", zeroize(skip))]
     platform: Platform,
 }
 
@@ -590,16 +598,23 @@ impl CompressOut {
     }
 }
 
-pub fn hash_many_wrapper(
-    inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2],
-) -> CompressOut {
+pub fn hash_many_wrapper(inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2]) -> CompressOut {
     let platform = Platform::detect();
     let key = [0; 8];
     let mut out_bytes = [0; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
 
     let input_size = inputs[0].len();
-    let hash_many_fn: fn(Platform, &[&[u8]], &CVWords, u64, IncrementCounter, u8, u8, u8, &mut [u8]) -> () =
-    seq!(N in 2..=3000 { match input_size {
+    let hash_many_fn: fn(
+        Platform,
+        &[&[u8]],
+        &CVWords,
+        u64,
+        IncrementCounter,
+        u8,
+        u8,
+        u8,
+        &mut [u8],
+    ) -> () = seq!(N in 2..=3000 { match input_size {
             #( N => |platform, inputs,key,counter,increment_counter,flags,flags_start,flags_end,out| platform.hash_many_~N(inputs,key,counter,increment_counter,flags,flags_start,flags_end,out), )*
             _ => panic!("Unsupported chunk size"),
         }
@@ -794,7 +809,7 @@ fn compress_parents_parallel(
 // As a special case when the SIMD degree is 1, this function will still return
 // at least 2 outputs. This guarantees that this function doesn't perform the
 // root compression. (If it did, it would use the wrong flags, and also we
-// wouldn't be able to implement exendable output.) Note that this function is
+// wouldn't be able to implement extendable output.) Note that this function is
 // not used when the whole input is only 1 chunk long; that's a different
 // codepath.
 //
@@ -1063,6 +1078,7 @@ fn parent_node_output(
 /// # }
 /// ```
 #[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct Hasher {
     key: CVWords,
     chunk_state: ChunkState<DEFAULT_CHUNK_LEN>,
@@ -1487,6 +1503,7 @@ impl std::io::Write for Hasher {
 /// from an unknown position in the output stream to recover its block index. Callers with strong
 /// secret keys aren't affected in practice, but secret offsets are a [design
 /// smell](https://en.wikipedia.org/wiki/Design_smell) in any case.
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 #[derive(Clone)]
 pub struct OutputReader {
     inner: Output,
