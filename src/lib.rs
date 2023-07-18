@@ -122,7 +122,8 @@ use arrayref::{array_mut_ref, array_ref};
 use arrayvec::{ArrayString, ArrayVec};
 use core::cmp;
 use core::fmt;
-use platform::{Platform, MAX_SIMD_DEGREE, MAX_SIMD_DEGREE_OR_2};
+use platform::{Platform, MAX_SIMD_DEGREE};
+pub use platform::MAX_SIMD_DEGREE_OR_2;
 use seq_macro::seq;
 
 #[cfg(feature = "rayon")]
