@@ -68,6 +68,8 @@
 #![feature(array_chunks)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![feature(generic_arg_infer)]
+
 #[cfg(feature = "zeroize")]
 extern crate zeroize_crate as zeroize; // Needed because `zeroize::Zeroize` assumes the crate is named `zeroize`.
 
@@ -122,8 +124,8 @@ use arrayref::{array_mut_ref, array_ref};
 use arrayvec::{ArrayString, ArrayVec};
 use core::cmp;
 use core::fmt;
-use platform::{Platform, MAX_SIMD_DEGREE};
 pub use platform::MAX_SIMD_DEGREE_OR_2;
+use platform::{Platform, MAX_SIMD_DEGREE};
 use seq_macro::seq;
 
 #[cfg(feature = "rayon")]
@@ -599,17 +601,8 @@ impl CompressOut {
     }
 }
 
-type HashManyFn = fn(
-    Platform,
-    &[&[u8]],
-    &CVWords,
-    u64,
-    IncrementCounter,
-    u8,
-    u8,
-    u8,
-    &mut [u8],
-) -> ();
+type HashManyFn =
+    fn(Platform, &[&[u8]], &CVWords, u64, IncrementCounter, u8, u8, u8, &mut [u8]) -> ();
 
 pub fn hash_many_wrapper(inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2]) -> CompressOut {
     let platform = Platform::detect();
@@ -639,7 +632,8 @@ pub fn hash_many_wrapper(inputs: &[&[u8]; MAX_SIMD_DEGREE_OR_2]) -> CompressOut 
 
 seq!(N in 2..=3000 {
     pub fn hash_list_~N(input: &[u8]) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2] {
-        assert!(N * MAX_SIMD_DEGREE_OR_2 == input.len());
+        assert!(input.len() == N * MAX_SIMD_DEGREE_OR_2);
+
         let platform = Platform::detect();
         let input_arrays: ArrayVec<&[u8; N], MAX_SIMD_DEGREE_OR_2> = (0..MAX_SIMD_DEGREE_OR_2)
             .map(|i| array_ref!(input, i*N, N))
@@ -662,10 +656,10 @@ seq!(N in 2..=3000 {
 
 type HashListFn = fn(&[u8]) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2];
 
-pub fn hash_list_wrapper(input: &[u8], input_size: usize) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2] {
-    let hash_list_fn: HashListFn = seq!(N in 2..=3000 { match input_size {
+pub fn hash_list_wrapper(input: &[u8]) -> [u8; OUT_LEN * MAX_SIMD_DEGREE_OR_2] {
+    let hash_list_fn: HashListFn = seq!(N in 2..=3000 { match input.len() / MAX_SIMD_DEGREE_OR_2 {
             #( N => |input| hash_list_~N(input), )*
-            _ => panic!("Unsupported chunk size"),
+            _ => panic!("Unsupported list size"),
         }
     });
 

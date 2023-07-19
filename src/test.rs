@@ -1,5 +1,5 @@
 use crate::{
-    compress_chunks_parallel, compress_fixed_parallel, hash_many_wrapper,
+    compress_chunks_parallel, compress_fixed_parallel, hash_list_wrapper, hash_many_wrapper,
     platform::{Platform, MAX_SIMD_DEGREE_OR_2},
     CVBytes, CVWords, Hash, IncrementCounter, BLOCK_LEN, DEFAULT_CHUNK_LEN, IV, OUT_LEN,
 };
@@ -661,6 +661,37 @@ fn test_hash_many_wrapper() {
     );
 
     assert_eq!(hashed.intern, ground_truth);
+}
+
+#[test]
+fn test_hash_list_wrapper() {
+    let mut byte_gen = repeat(0..255).flatten();
+
+    const CHUNK_LEN: usize = 32;
+    const TOTAL_LEN: usize = CHUNK_LEN * MAX_SIMD_DEGREE_OR_2;
+    let input_arrays_vec: Vec<[u8; CHUNK_LEN]> = (0..MAX_SIMD_DEGREE_OR_2)
+        .map(|_| core::array::from_fn(|_| byte_gen.next().unwrap()))
+        .collect();
+
+    let input_flattened = input_arrays_vec.iter().flatten().copied().collect::<Vec<u8>>();
+
+    let hashed = hash_list_wrapper(&input_flattened);
+
+    let input_refs_vec: Vec<&[u8; CHUNK_LEN]> = input_arrays_vec.iter().collect();
+    let platform = Platform::detect();
+    let mut ground_truth = [0; MAX_SIMD_DEGREE_OR_2 * OUT_LEN];
+    platform.hash_many(
+        &input_refs_vec,
+        &[0; 8],
+        0,
+        IncrementCounter::No,
+        0,
+        0,
+        0,
+        &mut ground_truth,
+    );
+
+    assert_eq!(hashed, ground_truth);
 }
 
 #[test]
